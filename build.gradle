@@ -1,0 +1,48 @@
+apply plugin: 'java'
+
+ext {
+    genSrcDir = "$buildDir/generated_src"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "$genSrcDir/lexers/java"
+        }
+    }
+}
+
+task lexers {
+    def lexers = fileTree('src/main') {
+        include '**/*.l'
+    }
+    inputs.files lexers.files
+
+    // using just outputs.dir:
+//    outputs.dir "$genSrcDir/lexers"
+
+    // using a fileTree
+//    outputs.files fileTree("$genSrcDir/lexers")
+
+    // Using explicitly mapped files.
+    lexers.files.each {
+        outputs.file file(it
+                .absolutePath
+                .replace('\\', '/')
+                .replace('/src/main/', '/build/generated_src/lexers/')
+                .replace('.l', '.java'))
+    }
+    doLast {
+        ant.copy(todir: "$genSrcDir/lexers") {
+            lexers.addToAntBuilder(project.ant, 'fileset', FileCollection.AntType.FileSet)
+            globmapper(from: '*.l', to: '*.java')
+        }
+        outputs.files.files.each{println "output exists?: ${it.exists()}"}
+    }
+}
+
+task generated_code(dependsOn: lexers)
+
+compileJava {
+    dependsOn generated_code
+}
